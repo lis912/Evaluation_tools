@@ -30,10 +30,10 @@ retry=5
 difok=3
 minlen=
 ucredit=-1
-lcredit=-3
-dcredit=-3
+lcredit=-1
+dcredit=-1
 ocredit=-1
-remember=24
+remember=8
 # 登录失败策略
 deny=5 
 unlock_time=600 
