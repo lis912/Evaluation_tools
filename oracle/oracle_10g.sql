@@ -15,6 +15,13 @@
 --				SQL> 		@ /opt/oracle/oracle_10g.sql 
 --				SQL>		spool off
 --
+--
+--	Oracle10g 可能出现命令 sqlplus / as sysdba 无法登陆的情况，可以使用如下方式：
+--			sqlplus /nolog				-- 启动sqlplus但不连接会话
+--			conn / as sysdba			-- dba登陆
+--
+--
+--
 -- v1.0    2018.5
 
 -- 备注：
@@ -24,8 +31,8 @@
 -- 
 -- 		查看 sqlnet.ora 是否配置了以下参数：
 -- 
--- 		tcp.validnode_checking = yes    -- 激活限制机器访问数据库功能
--- 		tcp.invited_nodes			       -- 允许访问的ip地址
+-- 		tcp.validnode_checking = yes     -- 激活限制机器访问数据库功能
+-- 		tcp.invited_nodes			     -- 允许访问的ip地址
 -- 		tcp.excluded_nodes=(ip1,ip2,……)  -- 不允许访问的ip
 -- 		修改sqlnet.ora后，重新启动listener服务生效		
 -------------------------------------------------------------------------------+
