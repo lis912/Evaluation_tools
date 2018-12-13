@@ -62,19 +62,13 @@ col SUCCESS format a20
 col FAILURE format a20
 
 
-PROMPT  ---------------------------------------------------------------------
-PROMPT  --Describe:  This file is the result of check Oracle Database security config
-PROMPT  --Project name:
-PROMPT  --Server name:
-PROMPT  ---------------------------------------------------------------------
-
 
 PROMPT --@@ Oracle version info
 select to_char(sysdate,'YYYY-MM-DD hh24:mi:ss') from dual;
 PROMPT
-PROMPT --@@ Oracle version info:
-select * from v$version;
 
+PROMPT --@@ all database instances:
+select name from v$database;
 
 PROMPT ------------ Identity authentication ----------------------------------------------
 

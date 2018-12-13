@@ -58,6 +58,8 @@ col FAILURE format a20
 PROMPT --@@ Oracle version info:
 select * from v$version;
 
+PROMPT --@@ all database instances:
+select name from v$database;
 
 PROMPT ------------ Identity authentication ----------------------------------------------
 
