@@ -4,12 +4,13 @@
 # Author:       Li
 # Mail:			sjm217@qq.com 
 # Date:         2019.3
-# Version       v2.0
+# Version:      v2.0
 #
 # Description:
-#		等级保护安全基线配置检查脚本，兼容Red-Hat CentOS，Oracle,项目地址：https://github.com/lis912/Evaluation_tools 
+#		等级保护安全基线配置检查脚本，兼容Red-Hat CentOS，Oracle, Mysql.
+#  		项目地址：https://github.com/lis912/Evaluation_tools
 # Usage:
-# 		./linux_for_djbh.sh &> filename.sh
+# 		./linux_for_djbh.sh >> filename.sh
 #============================================================================
 
 # 全局变量
@@ -87,17 +88,28 @@ exit
 EOF`
 
 		[[ $banner =~ "11g" ]] && ORACLE_NUMBER="11g"
+		[[ $banner =~ "10g" ]] && ORACLE_NUMBER="10g"
+		[[ $banner =~ "12c" ]] && ORACLE_NUMBER="12c"
 	fi
 
-	DBS="${ORACLE} ${ORACLE_NUMBER}		${MYSQL} ${MYSQL_NUMBER}"
+	if [[ -n `netstat -pantu | grep mysqld` ]]; then
+		MYSQL="Mysql"
+# mysql -V 
+# mysql  Ver 14.14 Distrib 5.1.73, for redhat-linux-gnu (x86_64) using readline 5.1
+	fi
+	
+
+	DBS="${ORACLE} ${ORACLE_NUMBER}	${MYSQL} ${MYSQL_NUMBER}"
 }
 
-
 #----------------------------------------------------------------------------
-# Red-Hat or CentOS check
+# Information Collection
 #----------------------------------------------------------------------------
-redhat_or_centos_ceping()
+information_collection()
 {
+	get_system_version
+	get_database_version
+	
 	echo "#----------------------------------------------------------------------------"
 	echo "# Information Collection"
 	echo "#----------------------------------------------------------------------------"
@@ -116,12 +128,18 @@ redhat_or_centos_ceping()
 		# 6.x
 		Ipddr=`ifconfig | grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -v 127 | awk '{print $2}' | awk -F: '{print $2}'`
 	fi
-	echo -e "Hostname: \t\t\t" `hostname -s`
+	echo -e "Hostname: \t\t\t" `hostname`
 	echo -e "IP Address: \t\t ${Ipddr}" 
 	echo -e "Middleware or webserver： "
-	echo -e "DBS：\t\t ${DBS}"
-
+	echo -e "DBS：\t\t\t\t ${DBS}"
 	echo
+}
+
+#----------------------------------------------------------------------------
+# Red-Hat or CentOS check
+#----------------------------------------------------------------------------
+redhat_or_centos_ceping()
+{
 	echo "#----------------------------------------------------------------------------"
 	echo "# Checking Empty password users"
 	echo "#----------------------------------------------------------------------------"
@@ -230,8 +248,6 @@ redhat_or_centos_ceping()
 	fi
 	echo
 	
-	
-	
 	echo
 	echo "#----------------------------------------------------------------------------"
 	echo "# Login timeout lock, ('suggest config parameter: TMOUT >= 600s')"
@@ -294,7 +310,7 @@ redhat_or_centos_ceping()
 	
 	
 	echo
-	echo "audit rules:" `auditctl -l`
+	echo "[Audit rules]:" `auditctl -l`
 	echo
 	
 	echo
@@ -312,18 +328,15 @@ redhat_or_centos_ceping()
 	ls -l /var/log/secure
 	ls -l /var/log/audit/audit.log
 	ls -l /etc/rsyslog.conf
-	ls -l /etc/syslog.conf
 	ls -l /etc/audit/auditd.conf
 	echo
 
 	echo "#----------------------------------------------------------------------------"
 	echo "# Configuration parameter of audit record"
+	echo "# Note:Max_log_file=5(Log file capacity); Max_log_file_action=ROTATE(log size); num_logs=4"
 	echo "#----------------------------------------------------------------------------"
 	cat /etc/audit/auditd.conf | grep max_log_file | grep  -v ^#
 	cat /etc/audit/auditd.conf | grep num_logs | grep  -v ^#
-	#Max_log_file=5(日志文件大小)
-	#Max_log_file_action=ROTATE(循环日志文件)
-	#num_logs=4(旧文件数量)
 	echo
 	
 	echo "#----------------------------------------------------------------------------"
@@ -352,9 +365,9 @@ redhat_or_centos_ceping()
 	echo "#----------------------------------------------------------------------------"
 	echo "# IP address permit in hosts.allow and hosts.deny"
 	echo "#----------------------------------------------------------------------------"
-	echo "[more /etc/hosts.allow:]"
+	echo "[more /etc/hosts.allow]:"
 	cat /etc/hosts.allow | grep -v ^#
-	echo "[more /etc/hosts.deny :]"
+	echo "[more /etc/hosts.deny]:"
 	cat /etc/hosts.deny | grep -v ^#
 	echo
 
@@ -383,33 +396,30 @@ redhat_or_centos_ceping()
 	echo "#----------------------------------------------------------------------------"
 	echo "# System resource used status"
 	echo "#----------------------------------------------------------------------------"
-	# 磁盘使用情况
 	echo "[disk info:]"
 	df -h
 	echo
-	
-	# 内存使用情况
-	echo "[Memory info:]"
+
+	echo "[Memory info]:"
 	free -m
 	echo
 	
-	# 内存使用率
-	echo "mem_used_rate = "  `free -m | awk '{if(NR==2){print int($3*100/$2),"%"}}'`
-	# CPU使用率
+	echo "[mem_used_rate]: = "  `free -m | awk '{if(NR==2){print int($3*100/$2),"%"}}'`
+
 	cpu_used=`top -b -n 1 | head -n 4 | grep "^Cpu(s)" | awk '{print $2}' | cut -d 'u' -f 1`
-	echo "cpu_used_rate = " $cpu_used
+	echo "[cpu_used_rate]: = " $cpu_used
 	echo
 	
 	echo "#----------------------------------------------------------------------------"
 	echo "# MISC"
 	echo "#----------------------------------------------------------------------------"
-	echo "#System lastlog info:"
+	echo "#[System lastlog info]:"
 	lastlog
 	echo
-	echo "#crontab info:"
-	crontab -l
+	echo "#[crontab info]:"
+	crontab -L
 	echo
-	echo "#Process and port state:"
+	echo "#[Process and port state]:"
 	netstat -pantu
 	echo
 }
@@ -424,10 +434,10 @@ oracle_ceping()
 	echo "# Oracle checking"
 	echo "#----------------------------------------------------------------------------"
 	
-	# sql语句路径
+	# tmp sql file
 	sqlFile=/tmp/tmp_oracle.sql
 
-	# 写入sql语句
+	# write the sql file
 	echo "set echo off feedb off timi off pau off trimsp on head on long 2000000 longchunksize 2000000" > ${sqlFile}
 	echo "set linesize 150" >> ${sqlFile}
 	echo "set pagesize 80" >> ${sqlFile}
@@ -570,23 +580,51 @@ oracle_ceping()
 
 	echo "exit" >> ${sqlFile}
 
-	# 切换oracle账户执行后返回root
+	# switch oracle to execute, gone and back root user
 	su - oracle << EOF
 sqlplus / as sysdba @ ${sqlFile}
 exit
 EOF
-	# 清除临时sql文件
+	# delete the tmp sql file
 	rm $sqlFile -f
 	echo
 	echo
 }
 
-main_ceping()
-{	
-	output_file_banner
-	get_system_version
-	get_database_version	
+mysql_ceping()
+{ 	
+	MYSQL_BIN=$(which mysql)
+	read -p "Enter the mysql(user:root) password: " mysql_pwd
 	
+	echo "#----------------------------------------------------------------------------"
+	echo "# Mysql checking"
+	echo "#----------------------------------------------------------------------------"
+	echo "# Mysql database status"
+	$MYSQL_BIN -uroot -p$mysql_pwd -e "\s"
+	echo "# show databases;"
+	$MYSQL_BIN -uroot -p$mysql_pwd -e 'show databases;'
+	echo "# select version();"
+	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e 'select host, user, password from user;'
+	echo "# show tables;"
+	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e 'show tables;'
+	echo "# select user, Shutdown_priv, Grant_priv, File_priv from user;"
+	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e 'select user, Shutdown_priv, Grant_priv, File_priv from user;'
+	echo "# select * from db;"
+	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e 'select * from db;'
+	echo "# select * from tables_priv;"
+	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e 'select * from tables_priv;'
+	echo "# select * from columns_priv;"
+	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e 'select * from columns_priv;'	
+	echo "# show variables like 'log_%';"
+	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e "show variables like 'log_%';"	
+	echo "# show variables like 'log_bin';"
+	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e "show variables like 'log_bin';"
+	echo "# show variables like '%timeout%';"
+	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e "show variables like '%timeout%';"
+}
+
+check_system()
+{
 	if [ "CentOS"==${DISTRO} ] || [ "RedHat"==${DISTRO} ]; then
 		redhat_or_centos_ceping
 	fi
@@ -594,7 +632,28 @@ main_ceping()
 	if [ "Oracle"==${ORACLE} ]; then
 		oracle_ceping
 	fi
-		
+	
+	if [ "Mysql"==${MYSQL} ]; then
+		mysql_ceping
+	fi
 }
 
-main_ceping
+main_ceping()
+{	
+	case $1 in
+        -h)  
+			echo "test help"		;;
+		-l)		
+			information_collection	;;
+		-o)
+			oracle_ceping			;;
+		-m)
+			mysql_ceping			;;
+        *)                        
+			output_file_banner
+			information_collection  
+			check_system			;;
+    esac		
+}
+
+main_ceping $1
