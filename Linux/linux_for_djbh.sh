@@ -8,7 +8,6 @@
 #
 # Description:
 #		等级保护安全基线配置检查脚本，兼容Red-Hat CentOS，Oracle, Mysql.
-#  		项目地址：https://github.com/lis912/Evaluation_tools
 # Usage:
 # 		./linux_for_djbh.sh >> filename.sh
 #============================================================================
@@ -33,8 +32,6 @@ output_file_banner()
 	echo "# ============================================================================"
 	echo
 }
-
-
 
 #----------------------------------------------------------------------------
 # Gets the system version info
@@ -79,7 +76,6 @@ get_system_version()
 #----------------------------------------------------------------------------
 get_database_version()
 {
-	# 检查进程中是否运行Oracle监听进程，然后进一步获取版本号
 	if [[ -n `netstat -pantu | grep tnslsnr` ]]; then
 		ORACLE="Oracle"
 		banner=`su - oracle << EOF 
@@ -94,11 +90,8 @@ EOF`
 
 	if [[ -n `netstat -pantu | grep mysqld` ]]; then
 		MYSQL="Mysql"
-# mysql -V 
-# mysql  Ver 14.14 Distrib 5.1.73, for redhat-linux-gnu (x86_64) using readline 5.1
 	fi
 	
-
 	DBS="${ORACLE} ${ORACLE_NUMBER}	${MYSQL} ${MYSQL_NUMBER}"
 }
 
@@ -308,7 +301,6 @@ redhat_or_centos_ceping()
     esac
 	echo
 	
-	
 	echo
 	echo "[Audit rules]:" `auditctl -l`
 	echo
@@ -417,13 +409,12 @@ redhat_or_centos_ceping()
 	lastlog
 	echo
 	echo "#[crontab info]:"
-	crontab -L
+	crontab -l
 	echo
 	echo "#[Process and port state]:"
 	netstat -pantu
 	echo
 }
-
 
 #----------------------------------------------------------------------------
 # Oracle database checking(compatible 10g 11g 12c)
@@ -476,7 +467,7 @@ oracle_ceping()
 	echo "PROMPT" >> ${sqlFile}
 
 	echo "PROMPT #============================================================================#" >> ${sqlFile}
-	echo "PROMPT # Checking all user status" >> ${sqlFile}
+	echo "PROMPT # Checking all user status(note sample account:scott,outln,ordsys)" >> ${sqlFile}
 	echo "PROMPT #============================================================================#" >> ${sqlFile}
 	echo "select username, CREATED, USER_ID, account_status, profile from dba_users;" >> ${sqlFile}
 	echo "PROMPT" >> ${sqlFile}
@@ -487,6 +478,12 @@ oracle_ceping()
 	echo "select profile, resource_name, limit from dba_profiles where resource_type='PASSWORD';" >> ${sqlFile}
 	echo "PROMPT" >> ${sqlFile}
 
+	echo "PROMPT #============================================================================#" >> ${sqlFile}
+	echo "PROMPT # Show the default password account" >> ${sqlFile}
+	echo "PROMPT #============================================================================#" >> ${sqlFile}
+	echo "select * from dba_users_with_defpwd;" >> ${sqlFile}
+	echo "PROMPT" >> ${sqlFile}
+	
 	echo "PROMPT #============================================================================#" >> ${sqlFile}
 	echo "PROMPT # Show all users about granted_role='DBA'" >> ${sqlFile}
 	echo "PROMPT #============================================================================#" >> ${sqlFile}
@@ -515,12 +512,6 @@ oracle_ceping()
 	echo "PROMPT # Important security events covered by audit" >> ${sqlFile}
 	echo "PROMPT #============================================================================#" >> ${sqlFile}
 	echo "select AUDIT_OPTION, SUCCESS, FAILURE from dba_stmt_audit_opts;" >> ${sqlFile}
-	echo "PROMPT" >> ${sqlFile}
-
-	echo "PROMPT #============================================================================#" >> ${sqlFile}
-	echo "PROMPT # Protecting audit records status" >> ${sqlFile}
-	echo "PROMPT #============================================================================#" >> ${sqlFile}
-	echo "select grantee, owner, table_name, grantor, privilege from dba_tab_privs where table_name='AUD$';" >> ${sqlFile}
 	echo "PROMPT" >> ${sqlFile}
 
 	echo "PROMPT #============================================================================#" >> ${sqlFile}
@@ -587,14 +578,25 @@ exit
 EOF
 	# delete the tmp sql file
 	rm $sqlFile -f
+	
+	sqlnet_ora_path=`find / -name "sqlnet.ora" | grep -v samples`
 	echo
+	echo "#============================================================================#" 
+	echo -e "# Checking Oracle configuration files(path:${sqlnet_ora_path})"
+	echo "#============================================================================#"
+	cat $sqlnet_ora_path | grep -Ev "^$|^[#;]"
 	echo
 }
 
 mysql_ceping()
 { 	
 	MYSQL_BIN=$(which mysql)
-	read -p "Enter the mysql(user:root) password: " mysql_pwd
+	
+	if [ ! -n "$1" ];then
+		read -p "Enter the mysql(user:root) password: " mysql_pwd
+	else
+		mysql_pwd=$1
+	fi
 	
 	echo "#----------------------------------------------------------------------------"
 	echo "# Mysql checking"
@@ -621,39 +623,46 @@ mysql_ceping()
 	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e "show variables like 'log_bin';"
 	echo "# show variables like '%timeout%';"
 	$MYSQL_BIN -uroot -p$mysql_pwd -D mysql -e "show variables like '%timeout%';"
+	mysql_cnf=`find / -name my.cnf `
+	echo -e "# Checking Mysql configuration files(path:${mysql_cnf})"
+	cat $mysql_cnf | grep -v ^$
 }
 
 check_system()
 {
-	if [ "CentOS"==${DISTRO} ] || [ "RedHat"==${DISTRO} ]; then
-		redhat_or_centos_ceping
-	fi
-		
-	if [ "Oracle"==${ORACLE} ]; then
-		oracle_ceping
-	fi
-	
-	if [ "Mysql"==${MYSQL} ]; then
-		mysql_ceping
-	fi
+	[[ "CentOS"=="$DISTRO" ]] || [[ "RedHat"=="$DISTRO" ]] && redhat_or_centos_ceping
+	[[ "Oracle" == "$ORACLE" ]] && oracle_ceping
+	[[ "Mysql" == "$MYSQL" ]] && mysql_ceping
+}
+
+helpinfo()
+{
+    echo -e "Usage: $0 [OPTION] [PARAMETER]"
+	echo 
+    echo -e "${0} -h \t => view usage methods."
+    echo -e "${0} -l \t => show information collection."
+    echo -e "${0} -o \t => oracle check."
+    echo -e "${0} -m [password] \t => mysql check."
+    echo -e "${0} -a \t => auto check."
+	echo 
 }
 
 main_ceping()
 {	
 	case $1 in
         -h)  
-			echo "test help"		;;
+			helpinfo				;;
 		-l)		
 			information_collection	;;
 		-o)
 			oracle_ceping			;;
 		-m)
-			mysql_ceping			;;
-        *)                        
+			mysql_ceping $2			;;
+        -a)                        
 			output_file_banner
 			information_collection  
 			check_system			;;
     esac		
 }
 
-main_ceping $1
+main_ceping $1 $2
