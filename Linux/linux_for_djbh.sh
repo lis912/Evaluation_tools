@@ -9,7 +9,7 @@
 # Description:
 #		等级保护安全基线配置检查脚本，兼容Red-Hat CentOS，Oracle, Mysql.
 # Usage:
-# 		./linux_for_djbh.sh >> filename.sh
+# 		./linux_for_djbh.sh <opinion> {parameter} >> filename.sh
 #============================================================================
 
 # 全局变量
@@ -40,26 +40,26 @@ get_system_version()
 {
 	if grep -Eqii "CentOS" /etc/issue || grep -Eq "CentOS" /etc/*-release; then
         DISTRO='CentOS'
-		if grep -Eq "7." /etc/*-release; then
+		if grep -Eq "7\." /etc/*-release; then
 			DISTRO_NUMBER='7'
-		elif grep -Eq "6." /etc/*-release; then
+		elif grep -Eq "6\." /etc/*-release; then
 			DISTRO_NUMBER='6'
-		elif grep -Eq "5." /etc/*-release; then
+		elif grep -Eq "5\." /etc/*-release; then
 			DISTRO_NUMBER='5'
-		elif grep -Eq "4." /etc/*-release; then
+		elif grep -Eq "4\." /etc/*-release; then
 			DISTRO_NUMBER='4'
 		else
 			DISTRO_NUMBER='unknow'
 		fi	
     elif grep -Eqi "Red Hat Enterprise Linux Server" /etc/issue || grep -Eq "Red Hat Enterprise Linux Server" /etc/*-release; then
         DISTRO='RedHat'
-		if grep -Eq "7." /etc/*-release; then
+		if grep -Eq "7\." /etc/*-release; then
 			DISTRO_NUMBER='7'
-		elif grep -Eq "6." /etc/*-release; then
+		elif grep -Eq "6\." /etc/*-release; then
 			DISTRO_NUMBER='6'
-		elif grep -Eq "5." /etc/*-release; then
+		elif grep -Eq "5\." /etc/*-release; then
 			DISTRO_NUMBER='5'
-		elif grep -Eq "4." /etc/*-release; then
+		elif grep -Eq "4\." /etc/*-release; then
 			DISTRO_NUMBER='4'
 		else
 			DISTRO_NUMBER='unknow'
@@ -191,7 +191,6 @@ redhat_or_centos_ceping()
 	done
 	echo ${no_need_usenamelist%?}
 	echo
-
 
 	echo
 	echo "#----------------------------------------------------------------------------"
@@ -662,6 +661,7 @@ main_ceping()
 			output_file_banner
 			information_collection  
 			check_system			;;
+		*)  helpinfo        		;;
     esac		
 }
 
