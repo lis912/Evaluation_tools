@@ -198,25 +198,13 @@ redhat_or_centos_ceping()
 	echo "#----------------------------------------------------------------------------"
 	cat /etc/login.defs | grep PASS | grep -v ^#
 	echo
-	
-	case $DISTRO_NUMBER in
-        7)
-			passwordStrength=`cat /etc/pam.d/system-auth | grep -E 'pam_pwquality.so'`
-			if [ ! -n "$passwordStrength" ]; then
-				echo  "[X] After check '/etc/pam.d/system-auth', no pam_pwquality.so config"
-			else
-				echo $passwordStrength
-			fi;;        		
-        *)    
-			passwordStrength=`cat /etc/pam.d/system-auth | grep -E 'pam_cracklib.so'`
-			if [ ! -n "$passwordStrength" ]; then
-				echo  "[X] After check '/etc/pam.d/system-auth', no pam_cracklib.so config"
-			else
-				echo $passwordStrength
-			fi;;  
-    esac
+	passwordStrength=`cat /etc/pam.d/system-auth | grep -E 'pam_cracklib.so | pam_pwquality.so'`
+	if [ ! -n "$passwordStrength" ]; then
+		echo  "[X] After check '/etc/pam.d/system-auth', no pam_cracklib.so/pam_pwquality.so config"
+	else
+		echo $passwordStrength
+	fi
 	echo
-
 	echo
 	echo "#----------------------------------------------------------------------------"
 	echo "# Policy of login failure"
