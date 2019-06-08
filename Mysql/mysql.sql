@@ -40,6 +40,12 @@ select * from tables_priv;
 -- 列粒度级别 
 select * from columns_priv;
 
+
+-- 数据库日志
+show variables like 'log_%';
+show variables like 'log_bin';
+
+
 -- 删除多余账号
 select host, user from user;
 
